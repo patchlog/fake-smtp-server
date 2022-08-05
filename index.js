@@ -14,12 +14,14 @@ const config = cli.parse({
   'http-port': ['h', 'HTTP port to listen on', 'number', 1080],
   'http-ip': [false, 'IP Address to bind HTTP service to', 'ip', '0.0.0.0'],
   whitelist: ['w', 'Only accept e-mails from these adresses. Accepts multiple e-mails comma-separated', 'string'],
+  rejectTo: ['r', 'Reject messages to these adresses. Accepts multiple e-mails comma-separated', 'string'],
   max: ['m', 'Max number of e-mails to keep', 'number', 100],
   auth: ['a', 'Enable Authentication', 'string'],
   headers: [false, 'Enable headers in responses']
 });
 
 const whitelist = config.whitelist ? config.whitelist.split(',') : [];
+const rejectTo = config.rejectTo ? config.rejectTo.split(',') : [];
 
 let users = null;
 if (config.auth && !/.+:.+/.test(config.auth)) {
@@ -37,6 +39,13 @@ const mails = [];
 const server = new SMTPServer({
   authOptional: true,
   maxAllowedUnauthenticatedCommands: 1000,
+  onRcptTo(address, session, cb) {
+    if (rejectTo.length == 0 || rejectTo.indexOf(address.address) === -1) {
+      cb();
+    } else {
+      cb(new Error('Recipient is in reject list: ' + address.address));
+    }
+  },
   onMailFrom(address, session, cb) {
     if (whitelist.length == 0 || whitelist.indexOf(address.address) !== -1) {
       cb();
